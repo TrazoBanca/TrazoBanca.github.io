@@ -142,6 +142,49 @@
   #update-button:hover, #update-button:focus {
     background: #e6c847;
   }
+  #login-form {
+    margin-top: 1.5rem;
+    text-align: left;
+    color: #333;
+    background: #fff;
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+  }
+  #login-form input {
+    width: 100%;
+    margin: 0.5rem 0 1rem 0;
+  }
+  #login-form button {
+    width: 100%;
+    background: #667eea;
+    color: white;
+    font-weight: 700;
+    font-size: 1rem;
+    border-radius: 8px;
+    padding: 0.5rem;
+    border: none;
+    cursor: pointer;
+  }
+  #login-form button:hover {
+    background: #4b60d9;
+  }
+  #login-message {
+    margin-top: 0.75rem;
+    font-weight: 600;
+  }
+  #logout-button {
+    margin-top: 1rem;
+    cursor: pointer;
+    background: #ff4747;
+    border: none;
+    padding: 0.5rem 1rem;
+    color: white;
+    font-weight: 700;
+    border-radius: 8px;
+  }
+  #logout-button:hover {
+    background: #d63c3c;
+  }
   @media (max-width: 600px) {
     main h2 {
       font-size: 2rem;
@@ -170,6 +213,7 @@
 
 <!-- Firebase SDK -->
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
 </head>
@@ -209,8 +253,20 @@
     <input type="text" id="bruno-balance-input" placeholder="Saldo de Bruno" aria-label="Saldo de Bruno" />
     <input type="text" id="manuel-balance-input" placeholder="Saldo de Manuel" aria-label="Saldo de Manuel" />
     <br />
-    <button id="update-button">Actualizar Saldos</button>
+    <button id="update-button" disabled>Actualizar Saldos</button>
     <p id="update-message" style="margin-top: 1rem;"></p>
+
+    <div id="login-container">
+      <form id="login-form" aria-label="Login Form">
+        <label for="email-input" style="color:#333; font-weight:600;">Email:</label>
+        <input type="email" id="email-input" required placeholder="Tu correo electrónico" />
+        <label for="password-input" style="color:#333; font-weight:600;">Contraseña:</label>
+        <input type="password" id="password-input" required placeholder="Tu contraseña" />
+        <button type="submit">Iniciar sesión</button>
+        <p id="login-message"></p>
+      </form>
+      <button id="logout-button" style="display:none;">Cerrar sesión</button>
+    </div>
   </section>
 </main>
 <footer>
@@ -227,37 +283,116 @@
     storageBucket: "banca-458b0.firebasestorage.app",
     messagingSenderId: "1012969232014",
     appId: "1:1012969232014:web:378b6f8ea61a4692419bdf"
-    
   };
   // Initialize Firebase
   firebase.initializeApp(firebaseConfig);
   var database = firebase.database();
+  var auth = firebase.auth();
 
-  // Function to update the UI from database data
+  // Replace this with your authorized Firebase user UID
+  var authorizedUID = "YOUR_AUTHORIZED_USER_UID";
+
+  // References to DOM elements
+  var brunoInput = document.getElementById('bruno-balance-input');
+  var manuelInput = document.getElementById('manuel-balance-input');
+  var updateButton = document.getElementById('update-button');
+  var updateMessage = document.getElementById('update-message');
+
+  var loginForm = document.getElementById('login-form');
+  var emailInput = document.getElementById('email-input');
+  var passwordInput = document.getElementById('password-input');
+  var loginMessage = document.getElementById('login-message');
+  var logoutButton = document.getElementById('logout-button');
+
+  // Update the UI with balances from database
   function updateUI(usersData) {
     if (usersData) {
       if (usersData.user1) {
         document.getElementById('feature1-title').innerText = usersData.user1.name || "Bruno";
         document.getElementById('feature1-balance').innerText = usersData.user1.balance || "251P";
-        document.getElementById('bruno-balance-input').value = usersData.user1.balance || "";
+        brunoInput.value = usersData.user1.balance || "";
       }
       if (usersData.user2) {
         document.getElementById('feature2-title').innerText = usersData.user2.name || "Manuel";
         document.getElementById('feature2-balance').innerText = usersData.user2.balance || "102P";
-        document.getElementById('manuel-balance-input').value = usersData.user2.balance || "";
+        manuelInput.value = usersData.user2.balance || "";
       }
     }
   }
-
-  // Fetch initial user data from database on load
+  // Listen for realtime updates
   database.ref('users').on('value', function(snapshot) {
     updateUI(snapshot.val());
   });
 
+  // Enable or disable editing controls based on auth and authorization
+  function updateControls(user) {
+    if (user && user.uid === authorizedUID) {
+      brunoInput.disabled = false;
+      manuelInput.disabled = false;
+      updateButton.disabled = false;
+      loginForm.style.display = 'none';
+      logoutButton.style.display = 'inline-block';
+      loginMessage.textContent = '';
+      updateMessage.textContent = '';
+    } else {
+      brunoInput.disabled = true;
+      manuelInput.disabled = true;
+      updateButton.disabled = true;
+      loginForm.style.display = 'block';
+      logoutButton.style.display = 'none';
+      if (!user) {
+        loginMessage.textContent = 'Debes iniciar sesión para editar saldos.';
+      } else {
+        loginMessage.textContent = 'Usuario no autorizado para editar saldos.';
+      }
+      updateMessage.textContent = '';
+    }
+  }
+
+  // Handle authentication state changes
+  auth.onAuthStateChanged(function(user) {
+    updateControls(user);
+  });
+
+  // Handle form login submission
+  loginForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    loginMessage.textContent = 'Iniciando sesión...';
+    var email = emailInput.value.trim();
+    var password = passwordInput.value.trim();
+    auth.signInWithEmailAndPassword(email, password)
+      .then(() => {
+        loginMessage.textContent = 'Sesión iniciada correctamente.';
+        loginForm.reset();
+      })
+      .catch(function(error) {
+        loginMessage.style.color = 'red';
+        loginMessage.textContent = 'Error al iniciar sesión: ' + error.message;
+      });
+  });
+
+  // Handle logout
+  logoutButton.addEventListener('click', function() {
+    auth.signOut();
+    loginMessage.style.color = '#333';
+    loginMessage.textContent = 'Sesión cerrada.';
+  });
+
   // Update button event listener
-  document.getElementById('update-button').addEventListener('click', function() {
-    var brunoBalance = document.getElementById('bruno-balance-input').value.trim();
-    var manuelBalance = document.getElementById('manuel-balance-input').value.trim();
+  updateButton.addEventListener('click', function() {
+    var user = auth.currentUser;
+    if (!user) {
+      updateMessage.style.color = 'red';
+      updateMessage.textContent = 'Debes iniciar sesión para actualizar.';
+      return;
+    }
+    if (user.uid !== authorizedUID) {
+      updateMessage.style.color = 'red';
+      updateMessage.textContent = 'No estás autorizado para actualizar los saldos.';
+      return;
+    }
+    var brunoBalance = brunoInput.value.trim();
+    var manuelBalance = manuelInput.value.trim();
     var updates = {};
     if (brunoBalance) {
       updates['users/user1/balance'] = brunoBalance;
@@ -265,18 +400,18 @@
     if (manuelBalance) {
       updates['users/user2/balance'] = manuelBalance;
     }
-
+    updateMessage.style.color = '#ffdd57';
+    updateMessage.textContent = 'Actualizando saldos...';
     database.ref().update(updates, function(error) {
-      var msgEl = document.getElementById('update-message');
       if (error) {
-        msgEl.style.color = 'red';
-        msgEl.textContent = 'Error actualizando los saldos. Inténtalo de nuevo.';
+        updateMessage.style.color = 'red';
+        updateMessage.textContent = 'Error actualizando los saldos. Inténtalo de nuevo.';
       } else {
-        msgEl.style.color = 'lightgreen';
-        msgEl.textContent = 'Saldos actualizados correctamente.';
+        updateMessage.style.color = 'lightgreen';
+        updateMessage.textContent = 'Saldos actualizados correctamente.';
       }
       setTimeout(() => {
-        msgEl.textContent = '';
+        updateMessage.textContent = '';
       }, 4000);
     });
   });
