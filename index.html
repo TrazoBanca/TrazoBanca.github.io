@@ -150,9 +150,18 @@
     padding: 1rem 1.5rem;
     border-radius: 12px;
   }
+  #login-form label {
+    font-weight: 600;
+    display: block;
+    margin-top: 0.5rem;
+  }
   #login-form input {
     width: 100%;
-    margin: 0.5rem 0 1rem 0;
+    margin: 0.25rem 0 1rem 0;
+    padding: 0.5rem;
+    font-size: 1rem;
+    border-radius: 6px;
+    border: 1px solid #ccc;
   }
   #login-form button {
     width: 100%;
@@ -181,9 +190,14 @@
     color: white;
     font-weight: 700;
     border-radius: 8px;
+    display: none;
   }
   #logout-button:hover {
     background: #d63c3c;
+  }
+  #update-message {
+    margin-top: 1rem;
+    font-weight: 600;
   }
   @media (max-width: 600px) {
     main h2 {
@@ -250,23 +264,21 @@
   </section>
   <section id="edit" tabindex="0" aria-label="Edit User Balances">
     <h2>Editar Saldos de Usuarios</h2>
-    <input type="text" id="bruno-balance-input" placeholder="Saldo de Bruno" aria-label="Saldo de Bruno" />
-    <input type="text" id="manuel-balance-input" placeholder="Saldo de Manuel" aria-label="Saldo de Manuel" />
+    <input type="text" id="bruno-balance-input" placeholder="Saldo de Bruno" aria-label="Saldo de Bruno" disabled />
+    <input type="text" id="manuel-balance-input" placeholder="Saldo de Manuel" aria-label="Saldo de Manuel" disabled />
     <br />
     <button id="update-button" disabled>Actualizar Saldos</button>
-    <p id="update-message" style="margin-top: 1rem;"></p>
+    <p id="update-message"></p>
 
-    <div id="login-container">
-      <form id="login-form" aria-label="Login Form">
-        <label for="email-input" style="color:#333; font-weight:600;">Email:</label>
-        <input type="email" id="email-input" required placeholder="Tu correo electrónico" />
-        <label for="password-input" style="color:#333; font-weight:600;">Contraseña:</label>
-        <input type="password" id="password-input" required placeholder="Tu contraseña" />
-        <button type="submit">Iniciar sesión</button>
-        <p id="login-message"></p>
-      </form>
-      <button id="logout-button" style="display:none;">Cerrar sesión</button>
-    </div>
+    <form id="login-form" aria-label="Login Form" style="margin-top:1.5rem; text-align:left; color:#333; background:#fff; padding:1rem 1.5rem; border-radius:12px;">
+      <label for="email-input">Email:</label>
+      <input type="email" id="email-input" required placeholder="Tu correo electrónico" />
+      <label for="password-input">Contraseña:</label>
+      <input type="password" id="password-input" required placeholder="Tu contraseña" />
+      <button type="submit">Iniciar sesión</button>
+      <p id="login-message" style="margin-top: 0.75rem; font-weight: 600;"></p>
+    </form>
+    <button id="logout-button">Cerrar sesión</button>
   </section>
 </main>
 <footer>
@@ -289,10 +301,10 @@
   var database = firebase.database();
   var auth = firebase.auth();
 
-  // Replace this with your authorized Firebase user UID
+  // Replace this with your authorized Firebase user UID (get from console log)
   var authorizedUID = "YOUR_AUTHORIZED_USER_UID";
 
-  // References to DOM elements
+  // DOM elements
   var brunoInput = document.getElementById('bruno-balance-input');
   var manuelInput = document.getElementById('manuel-balance-input');
   var updateButton = document.getElementById('update-button');
@@ -326,6 +338,11 @@
 
   // Enable or disable editing controls based on auth and authorization
   function updateControls(user) {
+    if (user) {
+      console.log("Logged in user UID:", user.uid);
+    } else {
+      console.log("No user logged in");
+    }
     if (user && user.uid === authorizedUID) {
       brunoInput.disabled = false;
       manuelInput.disabled = false;
@@ -341,8 +358,10 @@
       loginForm.style.display = 'block';
       logoutButton.style.display = 'none';
       if (!user) {
+        loginMessage.style.color = '#333';
         loginMessage.textContent = 'Debes iniciar sesión para editar saldos.';
       } else {
+        loginMessage.style.color = 'red';
         loginMessage.textContent = 'Usuario no autorizado para editar saldos.';
       }
       updateMessage.textContent = '';
@@ -357,11 +376,13 @@
   // Handle form login submission
   loginForm.addEventListener('submit', function(e) {
     e.preventDefault();
+    loginMessage.style.color = '#333';
     loginMessage.textContent = 'Iniciando sesión...';
     var email = emailInput.value.trim();
     var password = passwordInput.value.trim();
     auth.signInWithEmailAndPassword(email, password)
       .then(() => {
+        loginMessage.style.color = 'green';
         loginMessage.textContent = 'Sesión iniciada correctamente.';
         loginForm.reset();
       })
