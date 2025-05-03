@@ -106,6 +106,42 @@
     font-size: 0.9rem;
     user-select: none;
   }
+  #edit {
+    background: rgba(255,255,255,0.12);
+    border-radius: 15px;
+    padding: 2rem 1.5rem;
+    max-width: 500px;
+    margin: 3rem auto;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.25);
+    text-align: center;
+  }
+  #edit h2 {
+    margin-bottom: 1.5rem;
+  }
+  #edit input {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    border: none;
+    margin: 0.5rem 1rem 1rem 0;
+    font-size: 1rem;
+    width: 180px;
+    max-width: 100%;
+    color: #333;
+  }
+  #update-button {
+    background: #ffdd57;
+    color: #333;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  #update-button:hover, #update-button:focus {
+    background: #e6c847;
+  }
   @media (max-width: 600px) {
     main h2 {
       font-size: 2rem;
@@ -125,8 +161,17 @@
       justify-content: center;
       gap: 1.5rem;
     }
+    #edit input {
+      width: 100%;
+      margin-bottom: 1rem;
+    }
   }
 </style>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
 </head>
 <body>
 <header>
@@ -135,6 +180,7 @@
     <a href="#welcome" tabindex="0">Welcome</a>
     <a href="#features" tabindex="0">Features</a>
     <a href="#contact" tabindex="0">Contact</a>
+    <a href="#edit" tabindex="0">Edit</a>
   </nav>
 </header>
 <main>
@@ -146,21 +192,94 @@
     <article class="feature-card" tabindex="0" role="article" aria-labelledby="feature1-title">
       <div class="feature-icon" aria-hidden="true">💲</div>
       <h3 id="feature1-title" class="feature-title">Bruno</h3>
-      <p class="feature-desc">251P</p>
+      <p id="feature1-balance" class="feature-desc">251P</p>
     </article>
     <article class="feature-card" tabindex="0" role="article" aria-labelledby="feature2-title">
       <div class="feature-icon" aria-hidden="true">💲</div>
       <h3 id="feature2-title" class="feature-title">Manuel</h3>
-      <p class="feature-desc">102P</p>
+      <p id="feature2-balance" class="feature-desc">102P</p>
     </article>
   </section>
   <section id="contact" tabindex="0" aria-label="Contact Us">
     <h2>Contactanos</h2>
     <p>si tienes alguna duda contactanos en <a href="mailto:manutrazo58@gmail.com" style="color: #ffdd57;">manutrazo58@gmail.com</a>.</p>
   </section>
+  <section id="edit" tabindex="0" aria-label="Edit User Balances">
+    <h2>Editar Saldos de Usuarios</h2>
+    <input type="text" id="bruno-balance-input" placeholder="Saldo de Bruno" aria-label="Saldo de Bruno" />
+    <input type="text" id="manuel-balance-input" placeholder="Saldo de Manuel" aria-label="Saldo de Manuel" />
+    <br />
+    <button id="update-button">Actualizar Saldos</button>
+    <p id="update-message" style="margin-top: 1rem;"></p>
+  </section>
 </main>
 <footer>
   &copy; 2024 TrazoBanca. All rights reserved.
 </footer>
+
+<script>
+  // Firebase config - replace with your own
+  var firebaseConfig = {
+    apiKey: "AIzaSyDf7KWfPZ4krDDpoG2vk3V_qj_Qf7CznKQ",
+    authDomain: "banca-458b0.firebaseapp.com",
+    databaseURL: "https://banca-458b0-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "banca-458b0",
+    storageBucket: "banca-458b0.firebasestorage.app",
+    messagingSenderId: "1012969232014",
+    appId: "1:1012969232014:web:378b6f8ea61a4692419bdf"
+    
+  };
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  var database = firebase.database();
+
+  // Function to update the UI from database data
+  function updateUI(usersData) {
+    if (usersData) {
+      if (usersData.user1) {
+        document.getElementById('feature1-title').innerText = usersData.user1.name || "Bruno";
+        document.getElementById('feature1-balance').innerText = usersData.user1.balance || "251P";
+        document.getElementById('bruno-balance-input').value = usersData.user1.balance || "";
+      }
+      if (usersData.user2) {
+        document.getElementById('feature2-title').innerText = usersData.user2.name || "Manuel";
+        document.getElementById('feature2-balance').innerText = usersData.user2.balance || "102P";
+        document.getElementById('manuel-balance-input').value = usersData.user2.balance || "";
+      }
+    }
+  }
+
+  // Fetch initial user data from database on load
+  database.ref('users').on('value', function(snapshot) {
+    updateUI(snapshot.val());
+  });
+
+  // Update button event listener
+  document.getElementById('update-button').addEventListener('click', function() {
+    var brunoBalance = document.getElementById('bruno-balance-input').value.trim();
+    var manuelBalance = document.getElementById('manuel-balance-input').value.trim();
+    var updates = {};
+    if (brunoBalance) {
+      updates['users/user1/balance'] = brunoBalance;
+    }
+    if (manuelBalance) {
+      updates['users/user2/balance'] = manuelBalance;
+    }
+
+    database.ref().update(updates, function(error) {
+      var msgEl = document.getElementById('update-message');
+      if (error) {
+        msgEl.style.color = 'red';
+        msgEl.textContent = 'Error actualizando los saldos. Inténtalo de nuevo.';
+      } else {
+        msgEl.style.color = 'lightgreen';
+        msgEl.textContent = 'Saldos actualizados correctamente.';
+      }
+      setTimeout(() => {
+        msgEl.textContent = '';
+      }, 4000);
+    });
+  });
+</script>
 </body>
 </html>
