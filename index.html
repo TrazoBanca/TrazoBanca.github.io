@@ -114,6 +114,7 @@
     margin: 3rem auto;
     box-shadow: 0 8px 15px rgba(0,0,0,0.25);
     text-align: center;
+    color: #333;
   }
   #edit h2 {
     margin-bottom: 1.5rem;
@@ -145,22 +146,12 @@
   #login-form {
     margin-top: 1.5rem;
     text-align: left;
-    color: #333;
-    background: #fff;
-    padding: 1rem 1.5rem;
-    border-radius: 12px;
-  }
-  #login-form label {
-    font-weight: 600;
-    display: block;
-    margin-top: 0.5rem;
   }
   #login-form input {
     width: 100%;
-    margin: 0.25rem 0 1rem 0;
+    margin: 0.5rem 0 1rem 0;
     padding: 0.5rem;
-    font-size: 1rem;
-    border-radius: 6px;
+    border-radius: 8px;
     border: 1px solid #ccc;
   }
   #login-form button {
@@ -177,9 +168,9 @@
   #login-form button:hover {
     background: #4b60d9;
   }
-  #login-message {
-    margin-top: 0.75rem;
+  #login-message, #update-message {
     font-weight: 600;
+    margin-top: 0.5rem;
   }
   #logout-button {
     margin-top: 1rem;
@@ -190,14 +181,9 @@
     color: white;
     font-weight: 700;
     border-radius: 8px;
-    display: none;
   }
   #logout-button:hover {
     background: #d63c3c;
-  }
-  #update-message {
-    margin-top: 1rem;
-    font-weight: 600;
   }
   @media (max-width: 600px) {
     main h2 {
@@ -270,15 +256,15 @@
     <button id="update-button" disabled>Actualizar Saldos</button>
     <p id="update-message"></p>
 
-    <form id="login-form" aria-label="Login Form" style="margin-top:1.5rem; text-align:left; color:#333; background:#fff; padding:1rem 1.5rem; border-radius:12px;">
-      <label for="email-input">Email:</label>
+    <form id="login-form" aria-label="Login Form" style="margin-top:1.5rem; color:#333; max-width:400px; margin-left:auto; margin-right:auto;">
+      <label for="email-input" style="font-weight:600;">Email:</label>
       <input type="email" id="email-input" required placeholder="Tu correo electrónico" />
-      <label for="password-input">Contraseña:</label>
+      <label for="password-input" style="font-weight:600;">Contraseña:</label>
       <input type="password" id="password-input" required placeholder="Tu contraseña" />
       <button type="submit">Iniciar sesión</button>
-      <p id="login-message" style="margin-top: 0.75rem; font-weight: 600;"></p>
+      <p id="login-message"></p>
     </form>
-    <button id="logout-button">Cerrar sesión</button>
+    <button id="logout-button" style="display:none; margin-top:1rem;">Cerrar sesión</button>
   </section>
 </main>
 <footer>
@@ -301,10 +287,9 @@
   var database = firebase.database();
   var auth = firebase.auth();
 
-  // Replace this with your authorized Firebase user UID (get from console log)
+  // Replace this with your authorized Firebase user UID
   var authorizedUID = "YOUR_AUTHORIZED_USER_UID";
 
-  // DOM elements
   var brunoInput = document.getElementById('bruno-balance-input');
   var manuelInput = document.getElementById('manuel-balance-input');
   var updateButton = document.getElementById('update-button');
@@ -316,71 +301,69 @@
   var loginMessage = document.getElementById('login-message');
   var logoutButton = document.getElementById('logout-button');
 
-  // Update the UI with balances from database
+  // Update UI fields from database
   function updateUI(usersData) {
     if (usersData) {
       if (usersData.user1) {
         document.getElementById('feature1-title').innerText = usersData.user1.name || "Bruno";
-        document.getElementById('feature1-balance').innerText = usersData.user1.balance || "251P";
+        document.getElementById('feature1-balance').innerText = usersData.user1.balance || "";
         brunoInput.value = usersData.user1.balance || "";
       }
       if (usersData.user2) {
         document.getElementById('feature2-title').innerText = usersData.user2.name || "Manuel";
-        document.getElementById('feature2-balance').innerText = usersData.user2.balance || "102P";
+        document.getElementById('feature2-balance').innerText = usersData.user2.balance || "";
         manuelInput.value = usersData.user2.balance || "";
       }
     }
   }
-  // Listen for realtime updates
   database.ref('users').on('value', function(snapshot) {
     updateUI(snapshot.val());
   });
 
   // Enable or disable editing controls based on auth and authorization
   function updateControls(user) {
+    console.log("Auth state changed. Current user:", user);
     if (user) {
-      console.log("Logged in user UID:", user.uid);
-    } else {
-      console.log("No user logged in");
-    }
-    if (user && user.uid === authorizedUID) {
-      brunoInput.disabled = false;
-      manuelInput.disabled = false;
-      updateButton.disabled = false;
-      loginForm.style.display = 'none';
-      logoutButton.style.display = 'inline-block';
-      loginMessage.textContent = '';
-      updateMessage.textContent = '';
+      console.log("User UID:", user.uid);
+      if (user.uid === authorizedUID) {
+        brunoInput.disabled = false;
+        manuelInput.disabled = false;
+        updateButton.disabled = false;
+        loginForm.style.display = 'none';
+        logoutButton.style.display = 'inline-block';
+        loginMessage.textContent = '';
+        updateMessage.textContent = '';
+      } else {
+        brunoInput.disabled = true;
+        manuelInput.disabled = true;
+        updateButton.disabled = true;
+        loginForm.style.display = 'none';
+        logoutButton.style.display = 'inline-block';
+        loginMessage.style.color = 'red';
+        loginMessage.textContent = 'Usuario no autorizado para editar saldos.';
+        updateMessage.textContent = '';
+      }
     } else {
       brunoInput.disabled = true;
       manuelInput.disabled = true;
       updateButton.disabled = true;
       loginForm.style.display = 'block';
       logoutButton.style.display = 'none';
-      if (!user) {
-        loginMessage.style.color = '#333';
-        loginMessage.textContent = 'Debes iniciar sesión para editar saldos.';
-      } else {
-        loginMessage.style.color = 'red';
-        loginMessage.textContent = 'Usuario no autorizado para editar saldos.';
-      }
+      loginMessage.style.color = '#333';
+      loginMessage.textContent = 'Debes iniciar sesión para editar los saldos.';
       updateMessage.textContent = '';
     }
   }
 
-  // Handle authentication state changes
-  auth.onAuthStateChanged(function(user) {
-    updateControls(user);
-  });
+  // Listen to auth state changes
+  auth.onAuthStateChanged(updateControls);
 
-  // Handle form login submission
+  // Login form submission
   loginForm.addEventListener('submit', function(e) {
     e.preventDefault();
     loginMessage.style.color = '#333';
     loginMessage.textContent = 'Iniciando sesión...';
-    var email = emailInput.value.trim();
-    var password = passwordInput.value.trim();
-    auth.signInWithEmailAndPassword(email, password)
+    auth.signInWithEmailAndPassword(emailInput.value.trim(), passwordInput.value.trim())
       .then(() => {
         loginMessage.style.color = 'green';
         loginMessage.textContent = 'Sesión iniciada correctamente.';
@@ -392,14 +375,16 @@
       });
   });
 
-  // Handle logout
+  // Logout button handler
   logoutButton.addEventListener('click', function() {
-    auth.signOut();
-    loginMessage.style.color = '#333';
-    loginMessage.textContent = 'Sesión cerrada.';
+    auth.signOut()
+      .then(() => {
+        loginMessage.style.color = '#333';
+        loginMessage.textContent = 'Sesión cerrada.';
+      });
   });
 
-  // Update button event listener
+  // Update balances button
   updateButton.addEventListener('click', function() {
     var user = auth.currentUser;
     if (!user) {
@@ -415,12 +400,8 @@
     var brunoBalance = brunoInput.value.trim();
     var manuelBalance = manuelInput.value.trim();
     var updates = {};
-    if (brunoBalance) {
-      updates['users/user1/balance'] = brunoBalance;
-    }
-    if (manuelBalance) {
-      updates['users/user2/balance'] = manuelBalance;
-    }
+    if (brunoBalance) updates['users/user1/balance'] = brunoBalance;
+    if (manuelBalance) updates['users/user2/balance'] = manuelBalance;
     updateMessage.style.color = '#ffdd57';
     updateMessage.textContent = 'Actualizando saldos...';
     database.ref().update(updates, function(error) {
